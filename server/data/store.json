@@ -1,0 +1,122 @@
+{
+  "users": [
+    {
+      "_id": "demo-user-1",
+      "name": "Shaheem Demo",
+      "email": "demo@example.com",
+      "password": "$2b$10$oScorV43o68dJFEyySHwjeYENIq/p7cPFq0OKb4hZp7rTJXntMPbC",
+      "avatar": "",
+      "role": "user",
+      "isBlocked": false,
+      "createdAt": "2026-10-27T04:45:49.932Z"
+    },
+    {
+      "_id": "75ae718f-bf57-4314-8778-9ee742378e55",
+      "name": "Shaheem (Admin)",
+      "email": "shaheeiipv@gmail.com",
+      "password": "$2b$10$qPg2wzP3KEDt/GpdwW3b0uUOMU/GmQdGUO.wQu6U6VISMq0oE0mZa",
+      "avatar": "",
+      "role": "admin",
+      "isBlocked": false,
+      "createdAt": "2026-10-30T20:58:52.441Z"
+    }
+  ],
+  "transactions": [
+    {
+      "_id": "nov-demo-1",
+      "user": "demo-user-1",
+      "type": "income",
+      "amount": 50000,
+      "category": "Salary",
+      "date": "2026-11-01",
+      "note": "November Monthly Salary",
+      "createdAt": "2026-11-01T09:00:00.000Z"
+    },
+    {
+      "_id": "nov-demo-2",
+      "user": "demo-user-1",
+      "type": "expense",
+      "amount": 2500,
+      "category": "Food",
+      "date": "2026-11-03",
+      "note": "Supermarket groceries",
+      "createdAt": "2026-11-03T14:30:00.000Z"
+    },
+    {
+      "_id": "nov-demo-3",
+      "user": "demo-user-1",
+      "type": "expense",
+      "amount": 1200,
+      "category": "Transport",
+      "date": "2026-11-05",
+      "note": "Fuel & Commute",
+      "createdAt": "2026-11-05T10:15:00.000Z"
+    },
+    {
+      "_id": "nov-shaheem-1",
+      "user": "75ae718f-bf57-4314-8778-9ee742378e55",
+      "type": "income",
+      "amount": 100000,
+      "category": "Salary",
+      "date": "2026-11-01",
+      "note": "Monthly Salary",
+      "createdAt": "2026-11-01T09:00:00.000Z"
+    },
+    {
+      "_id": "nov-shaheem-2",
+      "user": "75ae718f-bf57-4314-8778-9ee742378e55",
+      "type": "expense",
+      "amount": 4500,
+      "category": "Shopping",
+      "date": "2026-11-04",
+      "note": "Office Supplies",
+      "createdAt": "2026-11-04T12:00:00.000Z"
+    },
+    {
+      "_id": "a278fa4e-60dd-403a-8ccf-975fcc8b250e",
+      "user": "75ae718f-bf57-4314-8778-9ee742378e55",
+      "type": "income",
+      "amount": 100000,
+      "category": "Salary",
+      "date": "2026-10-31",
+      "note": "",
+      "createdAt": "2026-10-30T20:59:17.795Z"
+    },
+    {
+      "_id": "57e4c7cd-160f-4c92-bc31-7697486691bc",
+      "user": "75ae718f-bf57-4314-8778-9ee742378e55",
+      "type": "expense",
+      "amount": 1000,
+      "category": "Food",
+      "date": "2026-10-31",
+      "note": "",
+      "createdAt": "2026-10-30T20:59:11.993Z"
+    },
+    {
+      "_id": "sample-1",
+      "user": "demo-user-1",
+      "type": "income",
+      "amount": 50000,
+      "category": "Salary",
+      "date": "2026-10-01",
+      "note": "October Monthly Salary",
+      "createdAt": "2026-10-27T04:45:49.935Z"
+    },
+    {
+      "_id": "sample-2",
+      "user": "demo-user-1",
+      "type": "expense",
+      "amount": 1250,
+      "category": "Food",
+      "date": "2026-10-27",
+      "note": "Groceries & fruits",
+      "createdAt": "2026-10-27T04:45:49.935Z"
+    }
+  ],
+  "budgets": {
+    "demo-user-1_2026-10": 30000,
+    "demo-user-1_2026-11": 25000,
+    "75ae718f-bf57-4314-8778-9ee742378e55_2026-10": 10000,
+    "75ae718f-bf57-4314-8778-9ee742378e55_2026-11": 35000
+  }
+}
