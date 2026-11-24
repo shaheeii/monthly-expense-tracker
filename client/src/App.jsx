@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, Sparkles, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { Analytics } from '@vercel/analytics/react';
 import Header from './components/Header';
 import BackgroundAura from './components/BackgroundAura';
 import BalanceRing from './components/BalanceRing';
@@ -457,6 +458,9 @@ export default function App() {
           localStorage.setItem('expense_tracker_user', JSON.stringify(updatedUser));
         }}
       />
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
