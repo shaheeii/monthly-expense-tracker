@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText } from 'lucide-react';
-import { formatRupee, exportToPDF } from '../utils/formatters';
+import { formatRupee } from '../utils/formatters';
 
 export default function BalanceRing({
   balance,
@@ -15,7 +14,6 @@ export default function BalanceRing({
   user = null
 }) {
   const componentRef = useRef(null);
-  const [isExporting, setIsExporting] = useState(false);
 
   // Compute profit/loss
   const numIncome = Number(income || 0);
@@ -25,30 +23,6 @@ export default function BalanceRing({
   const isDeficit = displayBalance < 0;
   const absBalance = Math.abs(displayBalance);
   const effectiveHasTx = hasTransactions || (numIncome > 0 || numSpent > 0);
-
-  const handleExportPdf = () => {
-    if (isExporting) return;
-    setIsExporting(true);
-    try {
-      exportToPDF({
-        transactions,
-        monthStr: currentMonth,
-        summary: {
-          totalIncome: numIncome,
-          totalSpent: numSpent,
-          balance: displayBalance,
-          ...summary
-        },
-        budgetLimit,
-        user
-      });
-    } catch (err) {
-      console.error('PDF Export Error:', err);
-      alert('Unable to generate PDF. Please ensure transactions exist.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   // Compute progress percentage for the ring
   let percentage = 0;
@@ -191,18 +165,6 @@ export default function BalanceRing({
           </div>
         </motion.div>
       </div>
-
-      {/* Sleek Export PDF Action Pill Below Ring (Clean Black & White) */}
-      <button
-        onClick={handleExportPdf}
-        disabled={isExporting}
-        title="Download high-resolution official PDF financial statement"
-        className="mt-3.5 flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 active:scale-95 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-      >
-        <FileText className="w-3.5 h-3.5" />
-        <span>{isExporting ? 'Generating Report...' : 'Download Statement (PDF)'}</span>
-        <Download className="w-3 h-3 ml-0.5 opacity-80" />
-      </button>
     </div>
   );
 }

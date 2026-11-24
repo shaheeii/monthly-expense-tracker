@@ -4,7 +4,6 @@ import { ChevronDown, Sparkles, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import Header from './components/Header';
 import BackgroundAura from './components/BackgroundAura';
-import GoldWaterSmoke from './components/GoldWaterSmoke';
 import BalanceRing from './components/BalanceRing';
 import SummaryCards from './components/SummaryCards';
 import SpendingLimit from './components/SpendingLimit';
@@ -315,9 +314,6 @@ export default function App() {
     <div className={`relative min-h-screen ${darkMode ? 'dark dark-theme-bg text-slate-100' : 'light-theme-bg text-slate-800'}`}>
       {/* Smoky Liquid Background Aura */}
       <BackgroundAura darkMode={darkMode} />
-
-      {/* Interactive Golden Water Smoke Cursor Trail */}
-      <GoldWaterSmoke />
 
       {/* Top Floating Glass Header */}
       <Header
