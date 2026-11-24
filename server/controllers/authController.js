@@ -9,10 +9,15 @@ const fallback = require('../data/fallbackStore');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
-// In-memory OTP store: email -> { otp, expiresAt, attempts }
+// In-memory secure OTP store: email -> { hashedOtp, expiresAt, attempts, requestedAt }
 const otpStore = new Map();
 
-// Helper to clean expired OTPs
+// Helper to hash OTP securely before storing in memory
+const hashOtp = (email, otp) => {
+  return crypto.createHash('sha256').update(`${email}:${otp}`).digest('hex');
+};
+
+// Periodically clean up expired OTP records
 setInterval(() => {
   const now = Date.now();
   for (const [key, val] of otpStore.entries()) {
@@ -22,22 +27,30 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Helper to create mail transporter if configured
+// Helper to create Nodemailer transport
 const getTransporter = () => {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+  const user = process.env.EMAIL_USER || process.env.SMTP_USER;
+  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
 
-  if (user && pass) {
+  if (!user || !pass) {
+    return null;
+  }
+
+  // If custom SMTP host is provided
+  if (process.env.SMTP_HOST) {
     return nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT, 10) || 587,
+      secure: process.env.SMTP_SECURE === 'true' || parseInt(process.env.SMTP_PORT, 10) === 465,
       auth: { user, pass }
     });
   }
-  return null;
+
+  // Default to standard Gmail service
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass }
+  });
 };
 
 const signToken = (id) => {
@@ -244,7 +257,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// POST /api/auth/forgot-password - Send 6-digit OTP to user email
+// POST /api/auth/forgot-password - Generate and send OTP via Nodemailer
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -254,6 +267,25 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if email service is configured
+    const transporter = getTransporter();
+    if (!transporter) {
+      return res.status(503).json({
+        success: false,
+        message: 'Email service is not configured. Please set EMAIL_USER and EMAIL_PASS in server/.env to send OTP emails.'
+      });
+    }
+
+    // Rate-limit: Check if an OTP was recently requested within the last 60 seconds
+    const existing = otpStore.get(normalizedEmail);
+    if (existing && Date.now() - existing.requestedAt < 60 * 1000) {
+      const remainingSec = Math.ceil((60 * 1000 - (Date.now() - existing.requestedAt)) / 1000);
+      return res.status(429).json({
+        success: false,
+        message: `Please wait ${remainingSec} seconds before requesting a new code.`
+      });
+    }
 
     let userExists = false;
     let userName = 'Valued User';
@@ -290,48 +322,96 @@ exports.forgotPassword = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
-    otpStore.set(normalizedEmail, { otp, expiresAt, attempts: 0 });
+    const senderEmail = process.env.EMAIL_USER || process.env.SMTP_USER;
+    const senderName = process.env.EMAIL_FROM || 'Monthly Expense Tracker';
 
-    const transporter = getTransporter();
+    const mailOptions = {
+      from: `"${senderName}" <${senderEmail}>`,
+      to: normalizedEmail,
+      subject: `${otp} is your Expense Tracker password reset code`,
+      text: `Hello ${userName},\n\nYour 6-digit verification code to reset your password is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please secure your account immediately.`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Password Reset Code</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 40px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" style="max-width: 480px; background-color: #ffffff; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e2e8f0;" cellspacing="0" cellpadding="0">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color: #0f172a; padding: 28px 32px; text-align: center;">
+                      <h1 style="color: #ffffff; font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">Expense Tracker</h1>
+                      <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 1px;">Account Security</p>
+                    </td>
+                  </tr>
+                  <!-- Body -->
+                  <tr>
+                    <td style="padding: 36px 32px; text-align: center;">
+                      <p style="font-size: 16px; color: #1e293b; font-weight: 600; margin: 0 0 8px;">Hello, ${userName}</p>
+                      <p style="font-size: 14px; color: #64748b; line-height: 1.5; margin: 0 0 28px;">
+                        We received a request to reset your password. Use the verification code below to complete your password reset:
+                      </p>
+                      
+                      <!-- OTP Box -->
+                      <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 20px 24px; margin-bottom: 28px; display: inline-block;">
+                        <span style="font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 36px; font-weight: 800; letter-spacing: 10px; color: #0f172a; margin-right: -10px;">${otp}</span>
+                      </div>
+                      
+                      <p style="font-size: 12px; color: #64748b; margin: 0 0 8px;">
+                        ⏱️ This verification code is valid for <strong>10 minutes</strong>.
+                      </p>
+                      <p style="font-size: 12px; color: #94a3b8; margin: 0; line-height: 1.5;">
+                        If you did not request a password reset, please ignore this email or update your password if you suspect unauthorized access.
+                      </p>
+                    </td>
+                  </tr>
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center;">
+                      <p style="font-size: 11px; color: #94a3b8; margin: 0;">
+                        This is an automated security message from Monthly Expense Tracker.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    };
 
-    if (transporter) {
-      const mailOptions = {
-        from: `"Monthly Expense Tracker" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
-        to: normalizedEmail,
-        subject: 'Password Reset Verification Code',
-        html: `
-          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-            <div style="background-color: #0f172a; padding: 24px; text-align: center;">
-              <h1 style="color: #ffffff; font-size: 20px; margin: 0; font-weight: 700;">Expense Tracker Security</h1>
-            </div>
-            <div style="padding: 32px 24px; text-align: center;">
-              <p style="font-size: 15px; color: #334155; margin-bottom: 8px;">Hello <strong>${userName}</strong>,</p>
-              <p style="font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5;">We received a request to reset your password. Use the following 6-digit verification code:</p>
-              <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; display: inline-block; margin-bottom: 24px;">
-                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0f172a; font-family: monospace;">${otp}</span>
-              </div>
-              <p style="font-size: 12px; color: #94a3b8; margin: 0;">This code is valid for <strong>10 minutes</strong>. If you did not request this, please ignore this email.</p>
-            </div>
-          </div>
-        `
-      };
-
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log(`[Email Service] OTP successfully sent to ${normalizedEmail}`);
-      } catch (mailErr) {
-        console.error('[Email Service] Error delivering email:', mailErr.message);
-      }
-    } else {
-      console.log(`\n=================================================`);
-      console.log(`[PASSWORD RESET OTP] For ${normalizedEmail}: ${otp}`);
-      console.log(`=================================================\n`);
+    // Attempt to send email through Nodemailer
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`[Email Service] Password reset OTP delivered to: ${normalizedEmail}`);
+    } catch (mailErr) {
+      console.error('[Email Service] Failed to send email via SMTP:', mailErr);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to deliver verification email. Please verify your email credentials in server/.env.'
+      });
     }
 
+    // Save hashed OTP ONLY after email sending succeeds
+    otpStore.set(normalizedEmail, {
+      hashedOtp: hashOtp(normalizedEmail, otp),
+      expiresAt,
+      attempts: 0,
+      requestedAt: Date.now()
+    });
+
+    // Return success WITHOUT exposing the OTP in the HTTP response
     return res.json({
       success: true,
-      message: `A 6-digit verification code has been sent to ${normalizedEmail}.`,
-      previewOtp: otp // Included for instant testability in development
+      message: `A 6-digit verification code has been dispatched to ${normalizedEmail}. Please check your inbox and spam folder.`
     });
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -339,7 +419,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// POST /api/auth/reset-password - Verify OTP and update password
+// POST /api/auth/reset-password - Verify OTP securely and update password
 exports.resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -386,15 +466,18 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    if (record.otp !== cleanOtp) {
+    // Compare cryptographic hashes
+    const inputHash = hashOtp(normalizedEmail, cleanOtp);
+    if (record.hashedOtp !== inputHash) {
       record.attempts += 1;
+      const attemptsLeft = 5 - record.attempts;
       return res.status(400).json({
         success: false,
-        message: 'Invalid verification code. Please check and try again.'
+        message: `Invalid verification code. ${attemptsLeft > 0 ? `${attemptsLeft} attempt(s) remaining.` : 'Please request a new code.'}`
       });
     }
 
-    // OTP is valid! Hash new password and update account
+    // OTP is valid! Hash new password with bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
@@ -415,7 +498,7 @@ exports.resetPassword = async (req, res) => {
       fallback.saveData(data);
     }
 
-    // Clear OTP record after successful reset
+    // Invalidate OTP immediately upon successful reset (single-use)
     otpStore.delete(normalizedEmail);
 
     return res.json({

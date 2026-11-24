@@ -19,7 +19,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [previewOtp, setPreviewOtp] = useState('');
 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -41,7 +40,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setOtp('');
     setNewPassword('');
     setConfirmPassword('');
-    setPreviewOtp('');
   };
 
   // Handle Standard Login & Registration
@@ -104,9 +102,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       setMode('reset');
       setResendCooldown(60);
       setSuccessMsg(data.message || 'Verification code sent to your email.');
-      if (data.previewOtp) {
-        setPreviewOtp(data.previewOtp);
-      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -277,20 +272,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-start space-x-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
-            </div>
-          )}
-
-          {/* OTP Preview Banner for Quick Testing */}
-          {previewOtp && (
-            <div className="mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center justify-between">
-              <span>OTP Code: <strong className="font-mono text-sm tracking-widest text-slate-900 dark:text-white ml-1">{previewOtp}</strong></span>
-              <button
-                type="button"
-                onClick={() => setOtp(previewOtp)}
-                className="px-2 py-1 text-[11px] bg-amber-200 dark:bg-amber-800/60 rounded-md hover:opacity-90 cursor-pointer"
-              >
-                Auto Fill
-              </button>
             </div>
           )}
 
