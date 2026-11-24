@@ -1,0 +1,45 @@
+# Vercel Web Analytics Installation Report
+
+## Summary
+Successfully installed and configured Vercel Web Analytics for the monthly-expense-tracker React + Vite application.
+
+## Changes Made
+
+### 1. Package Installation
+- **Package**: `@vercel/analytics` v2.0.1
+- **Method**: Installed using npm (project's package manager)
+- **Files Updated**: 
+  - `package.json` - Added `@vercel/analytics` to dependencies
+  - `package-lock.json` - Updated with new package dependencies
+
+### 2. Analytics Integration
+- **File Modified**: `client/src/App.jsx`
+- **Changes**:
+  1. Added import statement: `import { Analytics } from '@vercel/analytics/react';`
+  2. Added `<Analytics />` component at the end of the main App component's JSX (before the closing `</div>`)
+
+### 3. Implementation Details
+Following the official Vercel Analytics documentation (fetched from https://vercel.com/docs/analytics/quickstart):
+- Used the React-specific import path: `@vercel/analytics/react`
+- Placed the Analytics component in the root App component to track all page interactions
+- The component is self-contained and requires no additional props or configuration
+
+### 4. Testing & Verification
+- ✅ Build completed successfully with no errors
+- ✅ All dependencies resolved correctly
+- ✅ No breaking changes introduced
+- ✅ Lock files properly updated
+
+## Next Steps
+To enable analytics data collection:
+1. Enable Web Analytics in your Vercel dashboard (Analytics section)
+2. Deploy the application to Vercel using `vercel deploy`
+3. Verify tracking by checking browser's Network tab for fetch/XHR requests to `/<unique-path>/view`
+4. Access analytics data in the Vercel dashboard after users visit the site
+
+## Technical Notes
+- Framework: React 18.3.1 with Vite 5.4.9
+- Analytics Package Version: @vercel/analytics@2.0.1
+- The Analytics component is lightweight and has minimal performance impact
+- No additional configuration required for basic tracking
+- Analytics will only be active when deployed on Vercel's platform
