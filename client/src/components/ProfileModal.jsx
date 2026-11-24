@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogOut, User, Calendar, CreditCard, ShieldCheck, Check, ArrowUpRight, ArrowDownLeft, PiggyBank } from 'lucide-react';
 import { formatRupee } from '../utils/formatters';
+import { API_BASE } from '../utils/api';
 
 export default function ProfileModal({ isOpen, onClose, user, token, onLogout, onProfileUpdated }) {
   if (!isOpen || !user) return null;
@@ -22,7 +23,7 @@ export default function ProfileModal({ isOpen, onClose, user, token, onLogout, o
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch('/api/auth/profile', {
+        const res = await fetch(`${API_BASE}/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -41,7 +42,7 @@ export default function ProfileModal({ isOpen, onClose, user, token, onLogout, o
     setIsSaving(true);
     setStatusMsg('');
     try {
-      const res = await fetch('/api/auth/profile', {
+      const res = await fetch(`${API_BASE}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -15,8 +15,7 @@ import InsightsModal from './components/InsightsModal';
 import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
 import { exportToCSV, exportToPDF } from './utils/formatters';
-
-const API_BASE = '/api';
+import { API_BASE } from './utils/api';
 
 export default function App() {
   const getInitialMonth = () => {

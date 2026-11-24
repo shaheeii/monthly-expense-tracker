@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Mail, User, Eye, EyeOff, Sparkles, ArrowRight } from 'lucide-react';
+import { API_BASE } from '../utils/api';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   if (!isOpen) return null;
@@ -18,7 +19,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setError('');
     setIsLoading(true);
 
-    const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const endpoint = mode === 'login' ? `${API_BASE}/auth/login` : `${API_BASE}/auth/register`;
     const payload = mode === 'login' ? { email, password } : { name, email, password };
 
     try {
@@ -47,7 +48,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setError('');
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'demo@example.com', password: 'demo1234' })

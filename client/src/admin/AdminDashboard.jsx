@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../utils/api';
 
 export default function AdminDashboard() {
   const [admin, setAdmin] = useState(null);
@@ -45,10 +46,10 @@ export default function AdminDashboard() {
 
     try {
       const [usersRes, statsRes] = await Promise.all([
-        fetch('/api/admin/users', {
+        fetch(`${API_BASE}/admin/users`, {
           headers: { Authorization: `Bearer ${authToken}` }
         }),
-        fetch('/api/admin/stats', {
+        fetch(`${API_BASE}/admin/stats`, {
           headers: { Authorization: `Bearer ${authToken}` }
         })
       ]);
@@ -95,7 +96,7 @@ export default function AdminDashboard() {
     setActionLoadingId(user._id);
 
     const token = localStorage.getItem('admin_token');
-    const endpoint = `/api/admin/users/${user._id}/${action}`;
+    const endpoint = `${API_BASE}/admin/users/${user._id}/${action}`;
 
     try {
       const res = await fetch(endpoint, {
