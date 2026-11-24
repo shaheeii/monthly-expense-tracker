@@ -2,11 +2,43 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const fallback = require('../data/fallbackStore');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
+
+// In-memory OTP store: email -> { otp, expiresAt, attempts }
+const otpStore = new Map();
+
+// Helper to clean expired OTPs
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of otpStore.entries()) {
+    if (now > val.expiresAt) {
+      otpStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Helper to create mail transporter if configured
+const getTransporter = () => {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+
+  if (user && pass) {
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass }
+    });
+  }
+  return null;
+};
 
 const signToken = (id) => {
   return jwt.sign(
@@ -209,6 +241,190 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, message: 'Server error during login.' });
+  }
+};
+
+// POST /api/auth/forgot-password - Send 6-digit OTP to user email
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Please provide your email address.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    let userExists = false;
+    let userName = 'Valued User';
+
+    if (isDbConnected()) {
+      const user = await User.findOne({ email: normalizedEmail });
+      if (user) {
+        if (user.isBlocked) {
+          return res.status(403).json({ success: false, message: 'This account has been suspended or blocked.' });
+        }
+        userExists = true;
+        userName = user.name || userName;
+      }
+    } else {
+      const data = fallback.loadData();
+      const user = (data.users || []).find((u) => u.email === normalizedEmail);
+      if (user) {
+        if (user.isBlocked) {
+          return res.status(403).json({ success: false, message: 'This account has been suspended or blocked.' });
+        }
+        userExists = true;
+        userName = user.name || userName;
+      }
+    }
+
+    if (!userExists) {
+      return res.status(404).json({
+        success: false,
+        message: 'No registered account found with this email address.'
+      });
+    }
+
+    // Generate cryptographically secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
+
+    otpStore.set(normalizedEmail, { otp, expiresAt, attempts: 0 });
+
+    const transporter = getTransporter();
+
+    if (transporter) {
+      const mailOptions = {
+        from: `"Monthly Expense Tracker" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+        to: normalizedEmail,
+        subject: 'Password Reset Verification Code',
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <div style="background-color: #0f172a; padding: 24px; text-align: center;">
+              <h1 style="color: #ffffff; font-size: 20px; margin: 0; font-weight: 700;">Expense Tracker Security</h1>
+            </div>
+            <div style="padding: 32px 24px; text-align: center;">
+              <p style="font-size: 15px; color: #334155; margin-bottom: 8px;">Hello <strong>${userName}</strong>,</p>
+              <p style="font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5;">We received a request to reset your password. Use the following 6-digit verification code:</p>
+              <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; display: inline-block; margin-bottom: 24px;">
+                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0f172a; font-family: monospace;">${otp}</span>
+              </div>
+              <p style="font-size: 12px; color: #94a3b8; margin: 0;">This code is valid for <strong>10 minutes</strong>. If you did not request this, please ignore this email.</p>
+            </div>
+          </div>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log(`[Email Service] OTP successfully sent to ${normalizedEmail}`);
+      } catch (mailErr) {
+        console.error('[Email Service] Error delivering email:', mailErr.message);
+      }
+    } else {
+      console.log(`\n=================================================`);
+      console.log(`[PASSWORD RESET OTP] For ${normalizedEmail}: ${otp}`);
+      console.log(`=================================================\n`);
+    }
+
+    return res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${normalizedEmail}.`,
+      previewOtp: otp // Included for instant testability in development
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Server error processing password reset.' });
+  }
+};
+
+// POST /api/auth/reset-password - Verify OTP and update password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email, 6-digit OTP, and your new password.'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long.'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const cleanOtp = String(otp).trim();
+
+    const record = otpStore.get(normalizedEmail);
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active verification code found or it has expired. Please request a new code.'
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(normalizedEmail);
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code has expired. Please request a new code.'
+      });
+    }
+
+    if (record.attempts >= 5) {
+      otpStore.delete(normalizedEmail);
+      return res.status(400).json({
+        success: false,
+        message: 'Too many incorrect attempts. Please request a new verification code.'
+      });
+    }
+
+    if (record.otp !== cleanOtp) {
+      record.attempts += 1;
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code. Please check and try again.'
+      });
+    }
+
+    // OTP is valid! Hash new password and update account
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    if (isDbConnected()) {
+      const user = await User.findOne({ email: normalizedEmail });
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User account not found.' });
+      }
+      user.password = hashedPassword;
+      await user.save();
+    } else {
+      const data = fallback.loadData();
+      const userIdx = (data.users || []).findIndex((u) => u.email === normalizedEmail);
+      if (userIdx === -1) {
+        return res.status(404).json({ success: false, message: 'User account not found.' });
+      }
+      data.users[userIdx].password = hashedPassword;
+      fallback.saveData(data);
+    }
+
+    // Clear OTP record after successful reset
+    otpStore.delete(normalizedEmail);
+
+    return res.json({
+      success: true,
+      message: 'Your password has been reset successfully. You can now sign in with your new password.'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Server error resetting password.' });
   }
 };
 

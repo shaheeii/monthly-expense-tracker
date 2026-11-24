@@ -4,7 +4,7 @@
       "_id": "demo-user-1",
       "name": "Shaheem Demo",
       "email": "demo@example.com",
-      "password": "$2b$10$oScorV43o68dJFEyySHwjeYENIq/p7cPFq0OKb4hZp7rTJXntMPbC",
+      "password": "$2b$10$cY7AOZFR780KQKzBidEQrerNZz37CbtGOexWLb1vhGj.JoL55MlZu",
       "avatar": "",
       "role": "user",
       "isBlocked": false,
