@@ -29,8 +29,10 @@ setInterval(() => {
 
 // Helper to create Nodemailer transport
 const getTransporter = () => {
-  const user = process.env.EMAIL_USER || process.env.SMTP_USER;
-  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+  const rawPass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').trim();
+  // Strip any accidental spaces from Google App Password
+  const pass = rawPass.replace(/\s+/g, '');
 
   if (!user || !pass) {
     return null;
@@ -39,7 +41,7 @@ const getTransporter = () => {
   // If custom SMTP host is provided
   if (process.env.SMTP_HOST) {
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST.trim(),
       port: parseInt(process.env.SMTP_PORT, 10) || 587,
       secure: process.env.SMTP_SECURE === 'true' || parseInt(process.env.SMTP_PORT, 10) === 465,
       auth: { user, pass }
@@ -322,8 +324,8 @@ exports.forgotPassword = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
-    const senderEmail = process.env.EMAIL_USER || process.env.SMTP_USER;
-    const senderName = process.env.EMAIL_FROM || 'Monthly Expense Tracker';
+    const senderEmail = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+    const senderName = 'Monthly Expense Tracker';
 
     const mailOptions = {
       from: `"${senderName}" <${senderEmail}>`,
