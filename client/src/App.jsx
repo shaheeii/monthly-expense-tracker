@@ -81,7 +81,7 @@ export default function App() {
     localStorage.setItem('expense_tracker_user', JSON.stringify(newUser));
   };
 
-  // Handle Logout
+  // Handle Logout — clears session but keeps last email for quick Sign In next time
   const handleLogout = () => {
     setUser(null);
     setToken('');
@@ -98,6 +98,8 @@ export default function App() {
       dailyAverage: 0,
       categoryBreakdown: {}
     });
+    // Open Sign In modal automatically after logout
+    setIsAuthOpen(true);
   };
 
   // Auth Header helper

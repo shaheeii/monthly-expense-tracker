@@ -6,10 +6,14 @@ import { API_BASE } from '../utils/api';
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   if (!isOpen) return null;
 
+  // If a last-used email is saved (from a previous registration/login),
+  // default straight to 'login' mode and pre-fill that email.
+  const savedEmail = localStorage.getItem('expense_tracker_last_email') || '';
+
   // Modes: 'login', 'register', 'forgot', 'reset'
   const [mode, setMode] = useState('login');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(savedEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -63,6 +67,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Authentication failed.');
+      }
+
+      // Remember this email so next time the modal opens it pre-fills Sign In
+      if (email) {
+        localStorage.setItem('expense_tracker_last_email', email.toLowerCase().trim());
       }
 
       onAuthSuccess(data.user, data.token);
@@ -174,6 +183,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Demo login failed.');
       }
+      localStorage.setItem('expense_tracker_last_email', 'demo@example.com');
       onAuthSuccess(data.user, data.token);
       onClose();
     } catch (err) {
@@ -255,7 +265,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
               <button
                 type="button"
-                onClick={() => { setMode('register'); resetAllFields(); }}
+                onClick={() => { setMode('register'); resetAllFields(); setEmail(''); }}
                 className={`relative z-10 w-1/2 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
                   mode === 'register'
                     ? 'text-slate-900 dark:text-white'
