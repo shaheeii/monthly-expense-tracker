@@ -10,8 +10,18 @@ export default function AdminLogin() {
   // Redirect if already logged in
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (token) {
-      window.location.href = '/admin/dashboard';
+    const adminInfo = localStorage.getItem('admin_info');
+    if (token && adminInfo) {
+      try {
+        const parsed = JSON.parse(adminInfo);
+        if (parsed.role === 'admin' && parsed.email === 'shaheeiipv@gmail.com') {
+          window.location.replace('/admin/dashboard');
+          return;
+        }
+      } catch {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_info');
+      }
     }
   }, []);
 
@@ -37,7 +47,7 @@ export default function AdminLogin() {
 
       localStorage.setItem('admin_token', data.token);
       localStorage.setItem('admin_info', JSON.stringify(data.admin));
-      window.location.href = '/admin/dashboard';
+      window.location.replace('/admin/dashboard');
     } catch (err) {
       setError('Network error. Please try again.');
       setLoading(false);

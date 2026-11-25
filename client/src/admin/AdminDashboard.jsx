@@ -16,7 +16,7 @@ export default function AdminDashboard() {
     const adminInfo = localStorage.getItem('admin_info');
 
     if (!token || !adminInfo) {
-      window.location.href = '/admin/login';
+      window.location.replace('/admin/login');
       return;
     }
 
@@ -25,13 +25,13 @@ export default function AdminDashboard() {
       if (parsed.role !== 'admin' || parsed.email !== 'shaheeiipv@gmail.com') {
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_info');
-        window.location.href = '/admin/login';
+        window.location.replace('/admin/login');
         return;
       }
       setAdmin(parsed);
       loadDashboardData(token);
     } catch {
-      window.location.href = '/admin/login';
+      window.location.replace('/admin/login');
     }
   }, []);
 
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
       if (usersRes.status === 401 || usersRes.status === 403) {
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_info');
-        window.location.href = '/admin/login';
+        window.location.replace('/admin/login');
         return;
       }
 
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_info');
-    window.location.href = '/admin/login';
+    window.location.replace('/admin/login');
   };
 
   const triggerConfirm = (user, action) => {

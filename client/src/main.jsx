@@ -28,8 +28,17 @@ function Root() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentPath(normalizePath(window.location.pathname));
+      const newPath = normalizePath(window.location.pathname);
+      setCurrentPath(newPath);
+
+      // If user presses browser Back/Forward to an admin route without credentials,
+      // redirect immediately and wipe history state to prevent caching
+      if (newPath.startsWith('/admin') && newPath !== '/admin/login' && !hasValidAdminAuth()) {
+        window.history.replaceState(null, '', '/admin/login');
+        setCurrentPath('/admin/login');
+      }
     };
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -43,10 +52,13 @@ function Root() {
     return <AdminLogin />;
   }
 
-  // 2. If requesting admin dashboard without credentials:
-  // Block access immediately and show Admin Login
-  if (currentPath === '/admin' || currentPath === '/admin/dashboard') {
+  // 2. If requesting any admin page without credentials:
+  // Block access immediately, reset URL to /admin/login via replaceState so back button cannot re-enter
+  if (currentPath.startsWith('/admin')) {
     if (!hasValidAdminAuth()) {
+      if (window.location.pathname !== '/admin/login') {
+        window.history.replaceState(null, '', '/admin/login');
+      }
       return <AdminLogin />;
     }
     return <AdminDashboard />;
